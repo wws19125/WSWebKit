@@ -12,5 +12,14 @@
 
 @property(nonatomic,strong) UIWebView *webView;
 /// params for webView
-@property(nonatomic,strong) id params;
+@property(nonatomic,copy) NSDictionary* params;
+
+/// load Request from string
+///
+/// @params strURL urlstr
+- (void)loadRequest:(NSString *)strURL;
+
+/// clear function
+- (void)clearBeforePop;
+
 @end

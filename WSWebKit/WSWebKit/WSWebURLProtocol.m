@@ -10,6 +10,7 @@
 #import "WSWebKitConstant.h"
 #import "WSWebController.h"
 #import "UIViewController+Util.h"
+#import <WSLog/WSLog.h>
 
 const NSString const *RequestHandledKey = @"RequestHandledKey";
 
@@ -47,7 +48,7 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
     if(body)
     {
         NSString *str = [[NSString alloc] initWithData:body encoding:NSUTF8StringEncoding];
-        str = [[str stringByReplacingOccurrencesOfString:@"=" withString:@"&"] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
+        str = [[[str stringByReplacingOccurrencesOfString:@"=" withString:@"&"] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding] stringByReplacingOccurrencesOfString:@"\"" withString:@""];
         NSArray<NSString *> *arr = [str componentsSeparatedByString:@"&"];
         NSMutableString *mstr = [[NSMutableString alloc] initWithString:@"{"];
         [arr enumerateObjectsUsingBlock:^(NSString * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
@@ -70,7 +71,7 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
         NSDictionary* params = [NSJSONSerialization JSONObjectWithData:[mstr dataUsingEncoding:NSUTF8StringEncoding] options:NSJSONReadingMutableContainers error:&err];
         if(err)
         {
-            NSLog(@"%@ %@",err.localizedDescription,err.localizedFailureReason);
+            WSLogError(err);
         }
         if([params valueForKey:@"op"])
         {
@@ -83,25 +84,41 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
                     WSWebController *nvc = [[WSWebController alloc] init];
                     if(!vc.navigationController)
                     {
-                        [vc presentViewController:nvc animated:YES completion:^{
-                            [nvc.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:[params valueForKey:@"url"]]]];
-                        }];
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            [vc presentViewController:nvc animated:YES completion:^{
+                                [nvc.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:[params valueForKey:@"url"]]]];
+                            }];
+                        });
+                    }
+                    else
+                    {
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            [nvc loadRequest:[params valueForKey:@"url"]];
+                            [vc.navigationController pushViewController:nvc animated:YES];
+                        });
                     }
                 }
             }
             else if(op == KCOPCloseWindow)
             {
-                UIViewController* vc = [self currentController];
+                WSWebController* vc = (WSWebController *)[self currentController];
                 if(vc)
                 {
                     if(vc.navigationController)
                     {
-                        [vc.navigationController popViewControllerAnimated:YES];
+                        /// 当前导航控制器里面不止vc一个时候才Pop
+                        if(vc.navigationController.viewControllers.count>1)
+                            dispatch_async(dispatch_get_main_queue(), ^{
+                                [vc clearBeforePop];
+                                [vc.navigationController popViewControllerAnimated:YES];
+                            });
                     }
                     else
                         if(vc.presentingViewController)
                         {
-                            [vc dismissViewControllerAnimated:YES completion:nil];
+                            dispatch_async(dispatch_get_main_queue(), ^{
+                                [vc dismissViewControllerAnimated:YES completion:nil];
+                            });
                         }
                 }
             }

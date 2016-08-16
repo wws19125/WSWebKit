@@ -1,1 +1,1 @@
-window.plus = true;
+window.plus = {};

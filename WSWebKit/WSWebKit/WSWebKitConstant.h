@@ -25,7 +25,8 @@ typedef NS_ENUM(NSInteger,KCOP)
 {
     KCOPOpenWindow = 1 << 0,
     KCOPCloseWindow = 1 << 1,
-    KCOPConsole = 1 << 2
+    KCOPConsole = 1 << 2,  /// log
+    KCOPAjax = 1 << 3  /// ajax crossdomain
 };
 
 

@@ -42,6 +42,7 @@
 
 - (void)dealloc
 {
+    
 }
 
 /// clear function
@@ -58,7 +59,7 @@
     {
         lock = [NSLock new];
     }
-    ///同步
+    ///同步锁
     [lock lock];
     if(action)
     {
@@ -85,39 +86,7 @@
         {
             [NSURLProtocol unregisterClass:[WSWebURLProtocol class]];
         }
-    /*
-    static BOOL isRegister = NO;
-    if(action)
-    {
-        if(isRegister)return;
-        [NSURLProtocol registerClass:[WSWebURLProtocol class]];
-        isRegister = YES;
-    }
-    else
-    {
-        if(self.weakNavVC)
-        {
-            NSInteger count = self.weakNavVC.viewControllers.count;
-            if(![[self.weakNavVC topViewController] isKindOfClass:[WSWebController class]])
-            {
-                [NSURLProtocol unregisterClass:[WSWebURLProtocol class]];
-                [self.weakNavVC setNavigationBarHidden:self.navHidden];
-                isRegister = NO;
-            }
-        }
-        else
-        {
-            if(self.presentingViewController)
-            {
-                if([self.presentingViewController isKindOfClass:[WSWebController class]])
-                {
-                    [NSURLProtocol unregisterClass:[WSWebURLProtocol class]];
-                    isRegister = NO;
-                }
-            }
-        }
-    }
-     */
+    [lock unlock];
 }
 #pragma mark - uiwebviewdelegate
 - (BOOL)webView:(UIWebView *)webView shouldStartLoadWithRequest:(NSURLRequest *)request navigationType:(UIWebViewNavigationType)navigationType

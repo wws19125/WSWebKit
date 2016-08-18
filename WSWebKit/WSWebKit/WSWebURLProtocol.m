@@ -26,8 +26,9 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
 {
     if([WSWebURLProtocol propertyForKey:RequestHandledKey inRequest:request])
         return NO;
-    if([[request.HTTPMethod uppercaseString] isEqualToString:@"POST"]&&[request.URL.absoluteString containsString:KCHost])
+    if([[request allHTTPHeaderFields] valueForKey:@"_op"] || [[request.HTTPMethod uppercaseString] isEqualToString:@"OPTIONS"] || [request.URL.absoluteString containsString:KCHost])
     {
+        NSLog(@"-----------%@",[request allHTTPHeaderFields]);
         return YES;
     }
     return NO;
@@ -42,8 +43,9 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
 {
     NSMutableURLRequest *req = [self.request mutableCopy];
     [WSWebURLProtocol setProperty:@(YES) forKey:RequestHandledKey inRequest:req];
+    NSMutableDictionary<NSString *, NSString *> *params = [NSMutableDictionary dictionaryWithDictionary:[req allHTTPHeaderFields]];
     //NSURLResponse *rep = [[NSURLResponse alloc] initWithURL:self.request.URL MIMEType:@"application/json" expectedContentLength:0 textEncodingName:@"UTF8"];
-    
+    /*
     NSDate *body = self.request.HTTPBody;
     if(body)
     {
@@ -73,69 +75,81 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
         {
             WSLogError(err);
         }
-        if([params valueForKey:@"op"])
+        */
+    if([params valueForKey:@"_op"])
+    {
+        NSInteger op = [[params valueForKey:@"_op"] integerValue];
+        if(op == KCOPOpenWindow)
         {
-            NSInteger op = [[params valueForKey:@"op"] integerValue];
-            if(op == KCOPOpenWindow)
+            UIViewController* vc = [self currentController];
+            if(vc)
             {
-                UIViewController* vc = [self currentController];
-                if(vc)
-                {
                     WSWebController *nvc = [[WSWebController alloc] init];
                     if(!vc.navigationController)
                     {
                         dispatch_async(dispatch_get_main_queue(), ^{
                             [vc presentViewController:nvc animated:YES completion:^{
-                                [nvc.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:[params valueForKey:@"url"]]]];
+                                [nvc.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:[params valueForKey:@"_url"]]]];
                             }];
                         });
                     }
                     else
                     {
                         dispatch_async(dispatch_get_main_queue(), ^{
-                            [nvc loadRequest:[params valueForKey:@"url"]];
+                            [nvc loadRequest:[params valueForKey:@"_url"]];
                             [vc.navigationController pushViewController:nvc animated:YES];
                         });
                     }
                 }
-            }
-            else if(op == KCOPCloseWindow)
+        }
+        else if(op == KCOPCloseWindow)
+        {
+            WSWebController* vc = (WSWebController *)[self currentController];
+            if(vc)
             {
-                WSWebController* vc = (WSWebController *)[self currentController];
-                if(vc)
+                if(vc.navigationController)
                 {
-                    if(vc.navigationController)
-                    {
-                        /// 当前导航控制器里面不止vc一个时候才Pop
-                        if(vc.navigationController.viewControllers.count>1)
-                            dispatch_async(dispatch_get_main_queue(), ^{
-                                [vc clearBeforePop];
-                                [vc.navigationController popViewControllerAnimated:YES];
-                            });
-                    }
-                    else
-                        if(vc.presentingViewController)
-                        {
-                            dispatch_async(dispatch_get_main_queue(), ^{
-                                [vc dismissViewControllerAnimated:YES completion:nil];
-                            });
-                        }
+                    /// 当前导航控制器里面不止vc一个时候才Pop
+                    if(vc.navigationController.viewControllers.count>1)
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            [vc clearBeforePop];
+                            [vc.navigationController popViewControllerAnimated:YES];
+                        });
                 }
-            }
-            else if(op == KCOPConsole)
-            {
-                NSLog(@"%@",[params objectForKey:@"str"]);
+                else
+                    if(vc.presentingViewController)
+                    {
+                        dispatch_async(dispatch_get_main_queue(), ^{
+                            [vc dismissViewControllerAnimated:YES completion:nil];
+                        });
+                    }
             }
         }
+        else if(op == KCOPConsole)
+        {
+            NSLog(@"%@",[params objectForKey:@"_str"]);
+        }
+        else if(op == KCOPAjax)
+        {
+            ///async network request
+            NSURLSessionDataTask *dataTask = [self.urlSession dataTaskWithRequest:self.request];
+            return;
+        }
     }
-    NSDictionary *headers = @{@"Access-Control-Allow-Origin" : @"*", @"Content-Type" : @"application/json"};
+     
+    NSDictionary *headers;
+    if([[req.HTTPMethod uppercaseString] isEqualToString:@"OPTIONS"])
+    {
+        headers = @{@"Access-Control-Allow-Origin" : @"*",@"Access-Control-Allow-Methods":@"POST,GET,OPTIONS", @"Access-Control-Allow-Headers": @"_url,_op,_style,_str",@"Access-Control-Max-Age": @"3628800"};
+    }
+    else
+    {
+        headers = @{@"Access-Control-Allow-Origin" : @"*",@"Access-Control-Allow-Methods":@"POST,GET,OPTIONS", @"Access-Control-Allow-Headers": @"_url,_op,_style,_str",@"Access-Control-Max-Age": @"3628800",@"Content-Type":@"application/json; charset=utf-8"};
+    }
     NSHTTPURLResponse *rep = [[NSHTTPURLResponse alloc] initWithURL:self.request.URL statusCode:200 HTTPVersion:@"1.1" headerFields:headers];
     [self.client URLProtocol:self didReceiveResponse:rep cacheStoragePolicy:NSURLCacheStorageNotAllowed];
     [self.client URLProtocol:self didLoadData:[@"{\"code\":200,\"msg\":\"ok\",\"data\":0}" dataUsingEncoding:NSUTF8StringEncoding]];
-    [self.client URLProtocolDidFinishLoading:self];
-    /*
-    NSURLSessionDataTask *dataTask = [self.urlSession dataTaskWithRequest:self.request];
-     */
+    [self.client URLProtocolDidFinishLoading:self];    
 }
 
 

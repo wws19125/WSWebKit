@@ -17,6 +17,8 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
 @interface WSWebURLProtocol () <NSURLSessionDataDelegate>
 
 @property(nonatomic,strong) NSURLSession *urlSession;
+@property(nonatomic,strong) NSURLSessionTask *task;
+
 
 @end
 
@@ -28,7 +30,7 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
         return NO;
     if([[request allHTTPHeaderFields] valueForKey:@"_op"] || [[request.HTTPMethod uppercaseString] isEqualToString:@"OPTIONS"] || [request.URL.absoluteString containsString:KCHost])
     {
-        NSLog(@"-----------%@",[request allHTTPHeaderFields]);
+        //NSLog(@"-----------%@",[request allHTTPHeaderFields]);
         return YES;
     }
     return NO;
@@ -44,38 +46,6 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
     NSMutableURLRequest *req = [self.request mutableCopy];
     [WSWebURLProtocol setProperty:@(YES) forKey:RequestHandledKey inRequest:req];
     NSMutableDictionary<NSString *, NSString *> *params = [NSMutableDictionary dictionaryWithDictionary:[req allHTTPHeaderFields]];
-    //NSURLResponse *rep = [[NSURLResponse alloc] initWithURL:self.request.URL MIMEType:@"application/json" expectedContentLength:0 textEncodingName:@"UTF8"];
-    /*
-    NSDate *body = self.request.HTTPBody;
-    if(body)
-    {
-        NSString *str = [[NSString alloc] initWithData:body encoding:NSUTF8StringEncoding];
-        str = [[[str stringByReplacingOccurrencesOfString:@"=" withString:@"&"] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding] stringByReplacingOccurrencesOfString:@"\"" withString:@""];
-        NSArray<NSString *> *arr = [str componentsSeparatedByString:@"&"];
-        NSMutableString *mstr = [[NSMutableString alloc] initWithString:@"{"];
-        [arr enumerateObjectsUsingBlock:^(NSString * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-           if(idx%2==0)
-           {
-               [mstr appendString:[NSString stringWithFormat:@"\"%@\":",obj]];
-           }
-            else
-            {
-                if(idx==arr.count-1)
-                {
-                    [mstr appendString:[NSString stringWithFormat:@"\"%@\"}",obj]];
-                }
-                else
-                    [mstr appendString:[NSString stringWithFormat:@"\"%@\",",obj]];
-            }
-        }];
-        arr = nil;
-        NSError *err;
-        NSDictionary* params = [NSJSONSerialization JSONObjectWithData:[mstr dataUsingEncoding:NSUTF8StringEncoding] options:NSJSONReadingMutableContainers error:&err];
-        if(err)
-        {
-            WSLogError(err);
-        }
-        */
     if([params valueForKey:@"_op"])
     {
         NSInteger op = [[params valueForKey:@"_op"] integerValue];
@@ -84,27 +54,29 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
             UIViewController* vc = [self currentController];
             if(vc)
             {
-                    WSWebController *nvc = [[WSWebController alloc] init];
-                    if(!vc.navigationController)
-                    {
-                        dispatch_async(dispatch_get_main_queue(), ^{
-                            [vc presentViewController:nvc animated:YES completion:^{
-                                [nvc.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:[params valueForKey:@"_url"]]]];
-                            }];
-                        });
-                    }
-                    else
-                    {
-                        dispatch_async(dispatch_get_main_queue(), ^{
-                            [nvc loadRequest:[params valueForKey:@"_url"]];
-                            [vc.navigationController pushViewController:nvc animated:YES];
-                        });
-                    }
+                WSWebController *nvc = [[WSWebController alloc] init];
+                nvc.evalJS = [params valueForKey:@"_evalJS"];
+                if(!vc.navigationController)
+                {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [vc presentViewController:nvc animated:YES completion:^{
+                            [nvc.webView loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:[params valueForKey:@"_url"]]]];
+                        }];
+                    });
                 }
+                else
+                {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [nvc loadRequest:[params valueForKey:@"_url"]];
+                        [vc.navigationController pushViewController:nvc animated:YES];
+                    });
+                }
+            }
         }
         else if(op == KCOPCloseWindow)
         {
             WSWebController* vc = (WSWebController *)[self currentController];
+            //vc.evalJS = [params valueForKey:@"_evalJS"];
             if(vc)
             {
                 if(vc.navigationController)
@@ -112,8 +84,15 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
                     /// 当前导航控制器里面不止vc一个时候才Pop
                     if(vc.navigationController.viewControllers.count>1)
                         dispatch_async(dispatch_get_main_queue(), ^{
+                            ///注入回调
+                            id prevc = vc.navigationController.viewControllers[vc.navigationController.viewControllers.count-2];
+                            if([prevc isKindOfClass:[WSWebController class]])
+                            {
+                                ((WSWebController *)prevc).evalJS = [params valueForKey:@"_evalJS"];
+                            }
                             [vc clearBeforePop];
                             [vc.navigationController popViewControllerAnimated:YES];
+                            //((WSWebController *)[self currentController]).evalJS = [params valueForKey:@"_evalJS"];
                         });
                 }
                 else
@@ -132,32 +111,36 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
         else if(op == KCOPAjax)
         {
             ///async network request
-            NSURLSessionDataTask *dataTask = [self.urlSession dataTaskWithRequest:self.request];
+            NSURLSessionDataTask *task = [self.urlSession dataTaskWithRequest:req];
+            [task resume];
+            self.task = task;
             return;
         }
     }
      
     NSDictionary *headers;
+    ///crossdomain test
     if([[req.HTTPMethod uppercaseString] isEqualToString:@"OPTIONS"])
     {
-        headers = @{@"Access-Control-Allow-Origin" : @"*",@"Access-Control-Allow-Methods":@"POST,GET,OPTIONS", @"Access-Control-Allow-Headers": @"_url,_op,_style,_str",@"Access-Control-Max-Age": @"3628800"};
+        headers = @{@"Access-Control-Allow-Origin" : @"*",@"Access-Control-Allow-Methods":@"POST,GET,OPTIONS", @"Access-Control-Allow-Headers": @"_url,_op,_style,_str,_evalJS",@"Access-Control-Max-Age": @"3628800"};
     }
     else
     {
-        headers = @{@"Access-Control-Allow-Origin" : @"*",@"Access-Control-Allow-Methods":@"POST,GET,OPTIONS", @"Access-Control-Allow-Headers": @"_url,_op,_style,_str",@"Access-Control-Max-Age": @"3628800",@"Content-Type":@"application/json; charset=utf-8"};
+        /// er, we need add this or we get error
+        headers = @{@"Access-Control-Allow-Origin" : @"*",@"Access-Control-Allow-Methods":@"POST,GET,OPTIONS", @"Access-Control-Allow-Headers": @"_url,_op,_style,_str,_evalJS",@"Access-Control-Max-Age": @"3628800",@"Content-Type":@"application/json; charset=utf-8"};
     }
     NSHTTPURLResponse *rep = [[NSHTTPURLResponse alloc] initWithURL:self.request.URL statusCode:200 HTTPVersion:@"1.1" headerFields:headers];
     [self.client URLProtocol:self didReceiveResponse:rep cacheStoragePolicy:NSURLCacheStorageNotAllowed];
     [self.client URLProtocol:self didLoadData:[@"{\"code\":200,\"msg\":\"ok\",\"data\":0}" dataUsingEncoding:NSUTF8StringEncoding]];
-    [self.client URLProtocolDidFinishLoading:self];    
+    [self.client URLProtocolDidFinishLoading:self];
 }
 
 
 - (void)stopLoading
 {
-    if(_urlSession)
+    if(self.task)
     {
-        
+        [self.task cancel];
     }
 }
 
@@ -174,7 +157,11 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
 didReceiveResponse:(NSURLResponse *)response
  completionHandler:(void (^)(NSURLSessionResponseDisposition disposition))completionHandler
 {
-    [self.client URLProtocol:self didReceiveResponse:response cacheStoragePolicy:NSURLCacheStorageAllowed];
+    NSHTTPURLResponse *originRep = (NSHTTPURLResponse *)response;
+    NSMutableDictionary *headers = [NSMutableDictionary dictionaryWithDictionary:[originRep allHeaderFields]];
+    [headers setValuesForKeysWithDictionary: @{@"Access-Control-Allow-Origin" : @"*",@"Access-Control-Allow-Methods":@"POST,GET,OPTIONS", @"Access-Control-Allow-Headers": @"_url,_op,_style,_str,_evalJS",@"Access-Control-Max-Age": @"3628800",@"Content-Type":@"application/json; charset=utf-8"}];
+    NSHTTPURLResponse *rep = [[NSHTTPURLResponse alloc] initWithURL:self.request.URL statusCode:originRep.statusCode HTTPVersion:@"1.1" headerFields:headers];
+    [self.client URLProtocol:self didReceiveResponse:rep cacheStoragePolicy:NSURLCacheStorageAllowed];
     completionHandler(NSURLSessionResponseAllow);
 }
 
@@ -257,7 +244,7 @@ didCompleteWithError:(nullable NSError *)error
 {
     if(!_urlSession)
     {
-        _urlSession = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration] delegate:self delegateQueue:dispatch_get_main_queue()];
+        _urlSession = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration] delegate:self delegateQueue:[NSOperationQueue mainQueue]];
     }
     return _urlSession;
 }

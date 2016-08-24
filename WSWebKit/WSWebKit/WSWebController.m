@@ -14,7 +14,7 @@
 
 @property(nonatomic,weak) UINavigationController *weakNavVC;
 @property(nonatomic,assign) BOOL navHidden;
-
+@property(nonatomic,assign) BOOL loadFinish;
 @end
 
 @implementation WSWebController
@@ -26,6 +26,7 @@
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor whiteColor];
     [self registerProtocol:YES];
+    [self setAutomaticallyAdjustsScrollViewInsets:NO];
 }
 
 - (void)viewWillAppear:(BOOL)animated
@@ -36,6 +37,15 @@
         self.navHidden = self.navigationController.navigationBar.hidden;
         [self.navigationController setNavigationBarHidden:YES];
         self.weakNavVC = self.navigationController;
+    }
+}
+- (void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidAppear:animated];
+    if(self.evalJS&&self.loadFinish)
+    {
+        [self.webView stringByEvaluatingJavaScriptFromString:self.evalJS];
+        self.evalJS = nil;
     }
 }
 
@@ -85,6 +95,8 @@
         if(refCount==0)
         {
             [NSURLProtocol unregisterClass:[WSWebURLProtocol class]];
+            ///清理参数
+            self.params = nil;
         }
     [lock unlock];
 }
@@ -95,7 +107,7 @@
 }
 - (void)webViewDidStartLoad:(UIWebView *)webView
 {
-    NSLog(@"---------load");
+    //NSLog(@"---------load");
 }
 - (void)webViewDidFinishLoad:(UIWebView *)webView
 {
@@ -128,6 +140,14 @@
         NSString *str = [NSString stringWithFormat:@"window.plus.params = %@",[[NSString alloc] initWithData:dt encoding:NSUTF8StringEncoding]];
         [webView stringByEvaluatingJavaScriptFromString:str];
     }
+    if(self.evalJS)
+    {
+        [webView stringByEvaluatingJavaScriptFromString:self.evalJS];
+        self.evalJS = nil;
+    }
+    ///加载完成
+    self.loadFinish = YES;
+    [self.webView stringByEvaluatingJavaScriptFromString:@"wui.OSReady()"];
 }
 - (void)webView:(UIWebView *)webView didFailLoadWithError:(nullable NSError *)error
 {
@@ -146,17 +166,28 @@
         [self.view addSubview:_webView];
         /// auto layout
         [_webView setTranslatesAutoresizingMaskIntoConstraints:NO];
-        CGFloat top = 0;
-        if(self.presentingViewController)
-        {
-            top = 22;
-        }
+        CGFloat top = 22;
+        //if(self.presentingViewController)
+        //{
+          //  top = 22;
+        //}
         [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-(top)-[wv]-0-|" options:0 metrics:@{@"top":@(top)} views:@{@"wv":_webView}]];
         [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-0-[wv]-0-|" options:0 metrics:nil views:@{@"wv":_webView}]];
         _webView.delegate = self;
     }
     return _webView;
 }
+static NSDictionary *sharedParams;
+
+- (void)setParams:(NSDictionary *)params
+{
+    sharedParams = params;
+}
+- (NSDictionary *)params
+{
+    return sharedParams;
+}
+
 
 - (void)loadRequest:(NSString *)strURL
 {

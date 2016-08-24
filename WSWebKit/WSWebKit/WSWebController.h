@@ -13,6 +13,8 @@
 @property(nonatomic,strong) UIWebView *webView;
 /// params for webView
 @property(nonatomic,copy) NSDictionary* params;
+/// params from javascript
+@property(nonatomic,strong) NSString* evalJS;
 
 /// load Request from string
 ///

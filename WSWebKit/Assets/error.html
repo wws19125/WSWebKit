@@ -1,24 +1,53 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1,maximum-scale=1, user-scalable=no">
-            <meta name="apple-mobile-web-app-capable" content="yes">
-                <meta name="apple-mobile-web-app-status-bar-style" content="black">
-                    <title>PMSystem</title>
-                    <link rel="stylesheet" href="../assets/css/pmsystem.css" />
-                    <link rel="stylesheet" href="../assets/css/content/index.css" />
-                    <script type="text/javascript" src="../assets/js/jquery.js" ></script>
-                    <script type="text/javascript" src="../assets/js/wui.js" ></script>
-                    <script type="text/javascript" src="../assets/js/content/index.js" ></script>
-                    </head>
+        <meta charset="UTF-8">
+            <title>出错啦</title>
+            <style>
+                html
+                {
+                    height:100%;
+                    background: #0f674b;
+                }
+            .img_box
+            {
+                width: 80%;
+                margin: auto;
+                margin-top: 15%;
+            }
+            a
+            {
+                color: white;
+                text-decoration: none;
+                width: 100%;
+                display: block;
+                text-align: center;
+                font-size: 12pt;
+                margin-top: 20px;
+            }
+            </style>
+            <script>
+                window.onload = function(){
+                    var img = document.querySelector("img");
+                    img.setAttribute("style","margin-top:"+(document.querySelector("html").clientHeight/2.0 - img.clientHeight +"px"));
+                    document.querySelector("a").onclick = function(){
+                        var xhr = new XMLHttpRequest();
+                        
+                        xhr.onreadystatechange = function(){
+                        };
+                        xhr.open("GET","http://127.1.1.1",true);
+                        xhr.setRequestHeader("_op",1 << 1);
+                        xhr.send(null);
+                    };
+                };
+            </script>
+            </head>
     <body>
-        <article>
-            <br />
-            <h3>PMSystem</h3>
-            <a class="btn btn_back">返回</a>
-            <br />
-            <a class="btn_refresh btn">刷新</a>
-        </article>
+        <div class="img_box">
+            <img src="ERROR.png" width="100%" height="100%"/> 
+        </div>
+        <div>
+            <a href="#">访问出错了! 点我返回</a>
+        </div>
     </body>
 </html>

@@ -27,6 +27,7 @@
     self.view.backgroundColor = [UIColor whiteColor];
     [self registerProtocol:YES];
     [self setAutomaticallyAdjustsScrollViewInsets:NO];
+    [self.navigationController.interactivePopGestureRecognizer setEnabled:YES];
 }
 
 - (void)viewWillAppear:(BOOL)animated
@@ -153,6 +154,10 @@
 {
     //NSLog(@"---------didFailLoadWithError");
     ///加载默认的错误页面
+    NSBundle *bundle = [NSBundle bundleForClass:self.classForCoder];
+    NSError *err;
+    NSBundle *cbundle = [NSBundle bundleWithPath:[bundle pathForResource:@"WSWebKit" ofType:@"bundle"]];
+    [self loadRequest:[cbundle pathForResource:@"error" ofType:@"html"]];
     
 }
 
@@ -174,6 +179,7 @@
         [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"V:|-(top)-[wv]-0-|" options:0 metrics:@{@"top":@(top)} views:@{@"wv":_webView}]];
         [self.view addConstraints:[NSLayoutConstraint constraintsWithVisualFormat:@"H:|-0-[wv]-0-|" options:0 metrics:nil views:@{@"wv":_webView}]];
         _webView.delegate = self;
+        [_webView.scrollView setBounces:NO];
     }
     return _webView;
 }

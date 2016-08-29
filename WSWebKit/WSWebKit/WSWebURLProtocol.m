@@ -30,7 +30,7 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
         return NO;
     if([[request allHTTPHeaderFields] valueForKey:@"_op"] || [[request.HTTPMethod uppercaseString] isEqualToString:@"OPTIONS"] || [request.URL.absoluteString containsString:KCHost])
     {
-        //NSLog(@"-----------%@",[request allHTTPHeaderFields]);
+//        NSLog(@"-----------%@",[request allHTTPHeaderFields]);
         return YES;
     }
     return NO;

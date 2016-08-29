@@ -18,7 +18,7 @@ Pod::Spec.new do |s|
 #   * Finally, don't worry about the indent, CocoaPods strips it!
 
   s.description      = <<-DESC
-    通用web开发组件
+    通用web开发组件,需要配合响应的javascript脚本使用
                        DESC
 
   s.homepage         = 'https://github.com/wws19125/WSWebKit'

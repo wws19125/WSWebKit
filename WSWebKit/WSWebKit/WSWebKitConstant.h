@@ -12,7 +12,7 @@
 
 #include <UIKit/UIKit.h>
 
-const NSString const *KCHost = @"127.1.1.1";
+const NSString  *KCHost = @"127.1.1.1";
 
 /// 窗体类型
 typedef NS_ENUM(NSInteger,KCWinStyle)

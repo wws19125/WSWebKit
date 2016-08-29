@@ -12,7 +12,7 @@
 #import "UIViewController+Util.h"
 #import <WSLog/WSLog.h>
 
-const NSString const *RequestHandledKey = @"RequestHandledKey";
+const NSString *RequestHandledKey = @"RequestHandledKey";
 
 @interface WSWebURLProtocol () <NSURLSessionDataDelegate>
 
@@ -26,6 +26,8 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
 
 +(BOOL)canInitWithRequest:(NSURLRequest *)request
 {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wincompatible-pointer-types-discards-qualifiers"
     if([WSWebURLProtocol propertyForKey:RequestHandledKey inRequest:request])
         return NO;
     if([[request allHTTPHeaderFields] valueForKey:@"_op"] || [[request.HTTPMethod uppercaseString] isEqualToString:@"OPTIONS"] || [request.URL.absoluteString containsString:KCHost])
@@ -34,6 +36,7 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
         return YES;
     }
     return NO;
+#pragma clang diagnositc pop
 }
 
 + (NSURLRequest *)canonicalRequestForRequest:(NSURLRequest *)request
@@ -45,7 +48,7 @@ const NSString const *RequestHandledKey = @"RequestHandledKey";
 {
     NSMutableURLRequest *req = [self.request mutableCopy];
     [WSWebURLProtocol setProperty:@(YES) forKey:RequestHandledKey inRequest:req];
-    NSMutableDictionary<NSString *, NSString *> *params = [NSMutableDictionary dictionaryWithDictionary:[req allHTTPHeaderFields]];
+    NSMutableDictionary *params = [NSMutableDictionary dictionaryWithDictionary:[req allHTTPHeaderFields]];
     if([params valueForKey:@"_op"])
     {
         NSInteger op = [[params valueForKey:@"_op"] integerValue];

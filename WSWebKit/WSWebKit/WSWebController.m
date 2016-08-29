@@ -81,7 +81,7 @@
         refCount--;
         if(self.weakNavVC)
         {
-            NSInteger count = self.weakNavVC.viewControllers.count;
+            //NSInteger count = self.weakNavVC.viewControllers.count;
             if(![[self.weakNavVC topViewController] isKindOfClass:[WSWebController class]])
             {
                 [self.weakNavVC setNavigationBarHidden:self.navHidden];
@@ -155,7 +155,7 @@
     //NSLog(@"---------didFailLoadWithError");
     ///加载默认的错误页面
     NSBundle *bundle = [NSBundle bundleForClass:self.classForCoder];
-    NSError *err;
+    //NSError *err;
     NSBundle *cbundle = [NSBundle bundleWithPath:[bundle pathForResource:@"WSWebKit" ofType:@"bundle"]];
     [self loadRequest:[cbundle pathForResource:@"error" ofType:@"html"]];
     
